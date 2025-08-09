@@ -1,0 +1,394 @@
+package com.aarya.csaassistant.screens
+
+import android.util.Log
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
+import com.aarya.csaassistant.ui.theme.CSAAssistantTheme
+import com.aarya.csaassistant.utils.Routes
+import com.aarya.csaassistant.viewmodel.AuthViewModel
+import com.aarya.csaassistant.viewmodel.EntryViewModel
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun ShiftChangeScreen(
+    navController: NavController,
+    entryViewModel: EntryViewModel = hiltViewModel(),
+    authViewModel: AuthViewModel = hiltViewModel()
+) {
+    val nozzles = listOf("A1", "B1", "A2", "B2", "C1", "C2")
+
+    val nozzleColors = mapOf(
+        "A1" to Color(0xFF4CAF50), // Petrol - Green
+        "B1" to Color(0xFF4CAF50),
+        "A2" to Color(0xFF2196F3), // Diesel - Blue
+        "B2" to Color(0xFF2196F3),
+        "C2" to Color(0xFF2196F3),
+        "C1" to Color(0xFFF44336)  // Power - Red
+    )
+
+    var handedOverTo by remember { mutableStateOf<String?>(null) }
+    val openingReadingsMap = remember { mutableStateMapOf<String, String>() }
+    val closingReadingsMap = remember { mutableStateMapOf<String, String>() }
+    val userData by authViewModel.userData.collectAsState()
+    val allUsers by authViewModel.allUsers.collectAsState() // Collect all users
+
+    Scaffold(
+        bottomBar = { // Use the bottomBar slot for fixed bottom content
+            Row(
+                verticalAlignment = Alignment.CenterVertically, // Center buttons vertically
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth() // Make the Row take full width
+                    .padding(horizontal = 16.dp )
+                    .navigationBarsPadding()// Add padding
+            ) {
+                val haptic = LocalHapticFeedback.current
+                FilledTonalButton(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
+                        navController.popBackStack()
+                    },
+                    modifier = Modifier
+                        .weight(0.6f)
+                        .height(54.dp), // Adjust weight as needed
+                    shapes = ButtonDefaults.shapes() // Consider consistent shape usage
+                ) {
+                    Text(
+                        "Back",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+                Button(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
+                        // Convert openingReadingsMap (Map<String, String>) to Map<String, Float>
+                        val openingReadingsForDb = mutableMapOf<String, Float>()
+                        var conversionErrorOpening = false
+                        openingReadingsMap.forEach { (nozzle, readingStr) ->
+                            if (readingStr.isNotBlank()) {
+                                readingStr.toFloatOrNull()?.let { openingReadingsForDb[nozzle] = it }
+                                    ?: run {
+                                        conversionErrorOpening = true
+                                        Log.e("ShiftChangeScreen", "Invalid opening reading $nozzle: $readingStr")
+                                    }
+                            }
+                        }
+                        val closingReadingsForDb = mutableMapOf<String, Float>()
+                        var conversionErrorClosing = false
+                        closingReadingsMap.forEach { (nozzle, readingStr) ->
+                            if (readingStr.isNotBlank()) {
+                                readingStr.toFloatOrNull()?.let { closingReadingsForDb[nozzle] = it }
+                                    ?: run {
+                                        conversionErrorClosing = true
+                                        Log.e("ShiftChangeScreen", "Invalid closing reading $nozzle: $readingStr")
+                                    }
+                            }
+                        }
+                        if (conversionErrorOpening || conversionErrorClosing) {
+                            Log.w("ShiftChangeScreen", "Cannot proceed due to conversion error in readings.")
+                            // TODO: Show a Toast or error message to the user
+                            return@Button
+                        }
+                        entryViewModel.updateShiftChangeData(
+                            openingReadings = if (openingReadingsForDb.isEmpty()) null else openingReadingsForDb,
+                            closingReadings = if (closingReadingsForDb.isEmpty()) null else closingReadingsForDb,
+                            handedOverTo = handedOverTo,
+                            currentShift = "Morning", // Placeholder
+                            handedOverBy = userData?.full_name.toString()  // Placeholder
+                        )
+                        navController.navigate(Routes.SETTLEMENT)
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(54.dp), // Adjust weight as needed
+                    shapes = ButtonDefaults.shapes(),
+                ) {
+                    Text(
+                        "Next",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+            }
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+        ) {
+            Text(
+                text = "Shift Change",
+                modifier = Modifier.padding(16.dp),
+                style = MaterialTheme.typography.displaySmallEmphasized,
+                fontWeight = FontWeight.ExtraBold
+            )
+
+
+            val assigneeNames = allUsers.mapNotNull { it.full_name?.takeIf { name -> name.isNotBlank() } }
+            ShiftAssigneeDropdown(
+                assignees = assigneeNames, // Use names from ViewModel
+                selectedAssignee = handedOverTo,
+                onAssigneeSelected = { handedOverTo = it }
+            )
+            Spacer(Modifier.height(8.dp))
+
+            NozzleTogglePreview(
+                nozzles = nozzles,
+                nozzleColors = nozzleColors,
+                checkedStatesInitial = nozzles.associateWith { openingReadingsMap.containsKey(it) || closingReadingsMap.containsKey(it) },
+                openingReadingsProvider = { nozzle -> openingReadingsMap[nozzle] ?: "" },
+                onOpeningReadingChange = { nozzle, value ->
+                    if (value.isBlank() && !closingReadingsMap.containsKey(nozzle)) {
+                        openingReadingsMap.remove(nozzle)
+                    } else {
+                        openingReadingsMap[nozzle] = value
+                    }
+                },
+                closingReadingsProvider = { nozzle -> closingReadingsMap[nozzle] ?: "" },
+                onClosingReadingChange = { nozzle, value ->
+                    if (value.isBlank() && !openingReadingsMap.containsKey(nozzle)) { // Optional: remove if both blank
+                        closingReadingsMap.remove(nozzle)
+                    } else {
+                        closingReadingsMap[nozzle] = value
+                    }
+                },
+                onNozzleToggle = { nozzle, isChecked ->
+                    if (!isChecked) {
+                        openingReadingsMap.remove(nozzle)
+                        closingReadingsMap.remove(nozzle)
+                    }
+                }
+            )
+
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun NozzleTogglePreview(
+    nozzles: List<String>,
+    nozzleColors: Map<String, Color>,
+    checkedStatesInitial: Map<String, Boolean>,
+    openingReadingsProvider: (nozzle: String) -> String,
+    onOpeningReadingChange: (nozzle: String, value: String) -> Unit,
+    closingReadingsProvider: (nozzle: String) -> String,
+    onClosingReadingChange: (nozzle: String, value: String) -> Unit,
+    onNozzleToggle: (nozzle: String, isChecked: Boolean) -> Unit
+) {
+    CSAAssistantTheme {
+        Surface() {
+            val haptic = LocalHapticFeedback.current
+
+            val checkedStates = remember {
+                mutableStateMapOf<String, Boolean>().apply {
+                    putAll(checkedStatesInitial)
+                    nozzles.forEach { nozzle ->
+                        this.putIfAbsent(nozzle, false)
+                    }
+                }
+            }
+
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    "Select Nozzles",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(4.dp))
+
+                Row(
+                    Modifier.padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
+                ) {
+                    nozzles.forEachIndexed { index, nozzle ->
+                        val isChecked = checkedStates[nozzle] ?: false
+                        val color = nozzleColors[nozzle] ?: MaterialTheme.colorScheme.primary
+
+                        ToggleButton(
+                            checked = isChecked,
+                            onCheckedChange = { newCheckedState ->
+                                checkedStates[nozzle] = newCheckedState
+                                onNozzleToggle(nozzle, newCheckedState)
+                                haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ToggleButtonDefaults.toggleButtonColors(
+                                checkedContentColor = MaterialTheme.colorScheme.onPrimary,
+                                checkedContainerColor = color
+                            ),
+                            shapes =
+                                when (index) {
+                                    0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                                    nozzles.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                                    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                                }
+
+                        ) {
+                            Text(nozzle)
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                val selectedNozzlesForUI = nozzles.filter { checkedStates[it] == true }
+
+
+
+                if (selectedNozzlesForUI.isNotEmpty()) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Opening Readings",
+                            modifier = Modifier.weight(1f),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Closing Readings",
+                            modifier = Modifier.weight(1f),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(4.dp))
+
+                selectedNozzlesForUI.forEach { nozzle ->
+                    val color = nozzleColors[nozzle] ?: MaterialTheme.colorScheme.primary
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        OutlinedTextField(
+                            value = openingReadingsProvider(nozzle), // Get value from parent
+                            onValueChange = { newValue -> onOpeningReadingChange(nozzle, newValue) }, // Notify parent
+                            label = { Text("$nozzle opening") },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(16.dp),
+                            keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
+                            colors = OutlinedTextFieldDefaults.colors( focusedBorderColor = color, focusedLabelColor = color ),
+                            singleLine = true
+                        )
+                        OutlinedTextField(
+                            value = closingReadingsProvider(nozzle), // Get value from parent
+                            onValueChange = { newValue -> onClosingReadingChange(nozzle, newValue) }, // Notify parent
+                            label = { Text("$nozzle closing") },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(16.dp),
+                            keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
+                            colors = OutlinedTextFieldDefaults.colors( focusedBorderColor = color, focusedLabelColor = color ),
+                            singleLine = true
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ShiftAssigneeDropdown(
+    assignees: List<String>,
+    selectedAssignee: String?,
+    onAssigneeSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+    ) {
+        OutlinedTextField(
+            readOnly = true,
+            value = selectedAssignee ?: "",
+            onValueChange = {},
+            label = { Text("Next Shift Assignee") },
+            shape = RoundedCornerShape(16.dp),
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier.menuAnchor().fillMaxWidth().padding(horizontal = 16.dp)
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = {expanded = false},
+        ) {
+            assignees.forEach { assignee ->
+                DropdownMenuItem(
+                    text = { Text(assignee) },
+                    onClick = {
+                        onAssigneeSelected(assignee)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+//@Preview(showBackground = true)
+//@Composable
+//fun ShiftChangePreview() {
+//    CSAAssistantTheme {
+//        ShiftChangeScreen(
+//            {},
+//            {}
+//        )
+//    }
+//}
