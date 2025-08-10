@@ -55,6 +55,7 @@ import androidx.navigation.NavController
 import com.aarya.csaassistant.ui.theme.CSAAssistantTheme
 import com.aarya.csaassistant.utils.Routes
 import com.aarya.csaassistant.viewmodel.AuthViewModel
+import com.aarya.csaassistant.viewmodel.EmployeeViewModel
 import com.aarya.csaassistant.viewmodel.EntryViewModel
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -62,7 +63,8 @@ import com.aarya.csaassistant.viewmodel.EntryViewModel
 fun ShiftChangeScreen(
     navController: NavController,
     entryViewModel: EntryViewModel = hiltViewModel(),
-    authViewModel: AuthViewModel = hiltViewModel()
+    authViewModel: AuthViewModel = hiltViewModel(),
+    employeeViewModel: EmployeeViewModel = hiltViewModel()
 ) {
     val nozzles = listOf("A1", "B1", "A2", "B2", "C1", "C2")
 
@@ -79,7 +81,7 @@ fun ShiftChangeScreen(
     val openingReadingsMap = remember { mutableStateMapOf<String, String>() }
     val closingReadingsMap = remember { mutableStateMapOf<String, String>() }
     val userData by authViewModel.userData.collectAsState()
-    val allUsers by authViewModel.allUsers.collectAsState() // Collect all users
+    val employees by employeeViewModel.employees.collectAsState() // Collect all users
 
     Scaffold(
         bottomBar = { // Use the bottomBar slot for fixed bottom content
@@ -174,7 +176,7 @@ fun ShiftChangeScreen(
             )
 
 
-            val assigneeNames = allUsers.mapNotNull { it.full_name?.takeIf { name -> name.isNotBlank() } }
+            val assigneeNames = employees.filter { it.role == "CSA Assistant" } .mapNotNull { it.full_name.takeIf { name -> name.isNotBlank() } }
             ShiftAssigneeDropdown(
                 assignees = assigneeNames, // Use names from ViewModel
                 selectedAssignee = handedOverTo,

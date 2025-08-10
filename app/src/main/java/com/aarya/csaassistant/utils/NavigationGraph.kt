@@ -17,6 +17,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navigation
+import com.aarya.csaassistant.screens.EmployeeDetailsScreen
 import com.aarya.csaassistant.screens.EmployeesScreen
 import com.aarya.csaassistant.screens.EntriesScreen
 import com.aarya.csaassistant.screens.EntryDetailsScreen
@@ -37,6 +38,8 @@ object Routes {
     const val ENTRY_DETAILS = "entryDetails"
     const val ENTRY_ID_ARG = "entryId"
     const val EMPLOYEES = "employees"
+    const val EMPLOYEE_DETAILS = "employeeDetails"
+    const val EMPLOYEE_ID_ARG = "employeeId"
     const val LOADING = "loading"
     const val SIGNUP = "signup"
     const val SETTINGS = "settings"
@@ -118,8 +121,27 @@ fun NavigationGraph(
         }
 
         composable(Routes.EMPLOYEES) {
-            EmployeesScreen()
+            EmployeesScreen(navController = navController)
         }
+
+        composable(
+            route = "${Routes.EMPLOYEE_DETAILS}/{${Routes.EMPLOYEE_ID_ARG}}",
+            arguments = listOf(navArgument(Routes.EMPLOYEE_ID_ARG) { type = NavType.StringType })
+        ) { backStackEntry ->
+            val employeeId = backStackEntry.arguments?.getString(Routes.EMPLOYEE_ID_ARG)
+            if (employeeId != null) {
+                EmployeeDetailsScreen(
+                    employeeId = employeeId,
+                    navController = navController
+                )
+            } else {
+                // Optionally handle the case where entryId is null,
+                // though NavController should prevent this if the argument is not nullable.
+                // For safety, or if the argument could be optional:
+                navController.popBackStack()
+            }
+        }
+
         composable(Routes.LOADING) {
             LoadingScreen(onLoaded = { navController.navigate(Routes.HOME) }, onNotAuthenticated = { navController.navigate(Routes.SIGNUP) })
         }
