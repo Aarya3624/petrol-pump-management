@@ -86,7 +86,7 @@ data class Entry @OptIn(ExperimentalTime::class) constructor(
     val handed_over_to: String? = null,
     val shift: String? = null,
     val paytm_card_no: String? = null,
-    val closing_images_url: Map<String, String>? = null // Or emptyMap()
+    val closing_images_url: List<String>? = null // Or emptyMap()
 )
 
 

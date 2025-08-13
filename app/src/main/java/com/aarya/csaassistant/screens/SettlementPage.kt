@@ -330,7 +330,6 @@ fun SettlementPage(
                                             balanceShort = balanceShortOrExcess,
                                             creditDetails = creditDetailsMap.ifEmpty { null },
                                             paytmCardNo = paytmCardNo,
-                                            closingImagesUrl = closingImages,
                                             // Ensure created_at is handled correctly in ViewModel or here if needed
                                             // If it's set by DB, no action needed for it here.
                                             // If client sets it, ensure it's up-to-date.

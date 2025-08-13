@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
+// import androidx.compose.foundation.layout.fillMaxHeight // Not used, can be removed
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,10 +33,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+// import androidx.compose.runtime.LaunchedEffect // Not used directly here anymore
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
+// import androidx.compose.runtime.mutableStateListOf // Not used, can be removed
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,7 +48,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.tooling.preview.Preview
+// import androidx.compose.ui.tooling.preview.Preview // Not used, can be removed
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -57,14 +57,18 @@ import com.aarya.csaassistant.utils.Routes
 import com.aarya.csaassistant.viewmodel.AuthViewModel
 import com.aarya.csaassistant.viewmodel.EmployeeViewModel
 import com.aarya.csaassistant.viewmodel.EntryViewModel
+import com.aarya.csaassistant.viewmodel.ImageViewModel // <-- Added ImageViewModel import
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ShiftChangeScreen(
     navController: NavController,
     entryViewModel: EntryViewModel = hiltViewModel(),
     authViewModel: AuthViewModel = hiltViewModel(),
+    imageViewModel: ImageViewModel = hiltViewModel(), // <-- Added ImageViewModel
     employeeViewModel: EmployeeViewModel = hiltViewModel()
+
 ) {
     val nozzles = listOf("A1", "B1", "A2", "B2", "C1", "C2")
 
@@ -81,17 +85,20 @@ fun ShiftChangeScreen(
     val openingReadingsMap = remember { mutableStateMapOf<String, String>() }
     val closingReadingsMap = remember { mutableStateMapOf<String, String>() }
     val userData by authViewModel.userData.collectAsState()
-    val employees by employeeViewModel.employees.collectAsState() // Collect all users
+    val employees by employeeViewModel.employees.collectAsState()
+
+    // State for the image URLs from ImageCaptureSection
+    var currentClosingImageUrls by remember { mutableStateOf<List<String>>(emptyList()) }
 
     Scaffold(
-        bottomBar = { // Use the bottomBar slot for fixed bottom content
+        bottomBar = {
             Row(
-                verticalAlignment = Alignment.CenterVertically, // Center buttons vertically
+                verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
-                    .fillMaxWidth() // Make the Row take full width
-                    .padding(horizontal = 16.dp )
-                    .navigationBarsPadding()// Add padding
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp) // Added vertical padding
+                    .navigationBarsPadding()
             ) {
                 val haptic = LocalHapticFeedback.current
                 FilledTonalButton(
@@ -101,8 +108,8 @@ fun ShiftChangeScreen(
                     },
                     modifier = Modifier
                         .weight(0.6f)
-                        .height(54.dp), // Adjust weight as needed
-                    shapes = ButtonDefaults.shapes() // Consider consistent shape usage
+                        .height(54.dp),
+                    shapes = ButtonDefaults.shapes()
                 ) {
                     Text(
                         "Back",
@@ -112,7 +119,6 @@ fun ShiftChangeScreen(
                 Button(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
-                        // Convert openingReadingsMap (Map<String, String>) to Map<String, Float>
                         val openingReadingsForDb = mutableMapOf<String, Float>()
                         var conversionErrorOpening = false
                         openingReadingsMap.forEach { (nozzle, readingStr) ->
@@ -137,7 +143,7 @@ fun ShiftChangeScreen(
                         }
                         if (conversionErrorOpening || conversionErrorClosing) {
                             Log.w("ShiftChangeScreen", "Cannot proceed due to conversion error in readings.")
-                            // TODO: Show a Toast or error message to the user
+                            // TODO: Show a Snackbar or Toast to the user
                             return@Button
                         }
                         entryViewModel.updateShiftChangeData(
@@ -145,13 +151,15 @@ fun ShiftChangeScreen(
                             closingReadings = if (closingReadingsForDb.isEmpty()) null else closingReadingsForDb,
                             handedOverTo = handedOverTo,
                             currentShift = "Morning", // Placeholder
-                            handedOverBy = userData?.full_name.toString()  // Placeholder
+                            handedOverBy = userData?.full_name.toString(), // Consider null safety/default
+                            closingImagesUrl = currentClosingImageUrls // <-- Use updated image URLs
                         )
+                        imageViewModel.clearAllImageData() // <-- Clear images after submission
                         navController.navigate(Routes.SETTLEMENT)
                     },
                     modifier = Modifier
                         .weight(1f)
-                        .height(54.dp), // Adjust weight as needed
+                        .height(54.dp),
                     shapes = ButtonDefaults.shapes(),
                 ) {
                     Text(
@@ -171,14 +179,13 @@ fun ShiftChangeScreen(
             Text(
                 text = "Shift Change",
                 modifier = Modifier.padding(16.dp),
-                style = MaterialTheme.typography.displaySmallEmphasized,
+                style = MaterialTheme.typography.displaySmallEmphasized, // Ensure this style is defined
                 fontWeight = FontWeight.ExtraBold
             )
 
-
             val assigneeNames = employees.filter { it.role == "CSA Assistant" } .mapNotNull { it.full_name.takeIf { name -> name.isNotBlank() } }
             ShiftAssigneeDropdown(
-                assignees = assigneeNames, // Use names from ViewModel
+                assignees = assigneeNames,
                 selectedAssignee = handedOverTo,
                 onAssigneeSelected = { handedOverTo = it }
             )
@@ -198,7 +205,7 @@ fun ShiftChangeScreen(
                 },
                 closingReadingsProvider = { nozzle -> closingReadingsMap[nozzle] ?: "" },
                 onClosingReadingChange = { nozzle, value ->
-                    if (value.isBlank() && !openingReadingsMap.containsKey(nozzle)) { // Optional: remove if both blank
+                    if (value.isBlank() && !openingReadingsMap.containsKey(nozzle)) {
                         closingReadingsMap.remove(nozzle)
                     } else {
                         closingReadingsMap[nozzle] = value
@@ -212,7 +219,17 @@ fun ShiftChangeScreen(
                 }
             )
 
-            Spacer(Modifier.height(24.dp))
+            // Integrate ImageCaptureSection
+            ImageCaptureSection(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                imageViewModel = imageViewModel, // Pass the same ViewModel instance
+                onImageUrlsChanged = { urls ->
+                    currentClosingImageUrls = urls
+                },
+                maxImages = imageViewModel.maxImages // Assuming maxImages is a public property in ImageViewModel
+            )
+
+            Spacer(Modifier.height(24.dp)) // This spacer remains
         }
     }
 }
@@ -230,8 +247,8 @@ fun NozzleTogglePreview(
     onClosingReadingChange: (nozzle: String, value: String) -> Unit,
     onNozzleToggle: (nozzle: String, isChecked: Boolean) -> Unit
 ) {
-    CSAAssistantTheme {
-        Surface() {
+    CSAAssistantTheme { // Consider if CSAAssistantTheme is needed here or at a higher level
+        Surface(modifier = Modifier.fillMaxWidth()) { // Added fillMaxWidth for better layout
             val haptic = LocalHapticFeedback.current
 
             val checkedStates = remember {
@@ -252,7 +269,9 @@ fun NozzleTogglePreview(
                 Spacer(Modifier.height(4.dp))
 
                 Row(
-                    Modifier.padding(horizontal = 8.dp),
+                    Modifier
+                        .padding(horizontal = 8.dp)
+                        .fillMaxWidth(), // Ensure Row takes full width for button distribution
                     horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
                 ) {
                     nozzles.forEachIndexed { index, nozzle ->
@@ -272,12 +291,11 @@ fun NozzleTogglePreview(
                                 checkedContainerColor = color
                             ),
                             shapes =
-                                when (index) {
-                                    0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                                    nozzles.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-                                    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
-                                }
-
+                            when (index) {
+                                0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                                nozzles.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                                else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                            }
                         ) {
                             Text(nozzle)
                         }
@@ -287,8 +305,6 @@ fun NozzleTogglePreview(
                 Spacer(Modifier.height(16.dp))
 
                 val selectedNozzlesForUI = nozzles.filter { checkedStates[it] == true }
-
-
 
                 if (selectedNozzlesForUI.isNotEmpty()) {
                     Row(
@@ -306,34 +322,39 @@ fun NozzleTogglePreview(
                             fontWeight = FontWeight.SemiBold
                         )
                     }
+                    Spacer(Modifier.height(4.dp)) // Added space before text fields
                 }
-
-                Spacer(Modifier.height(4.dp))
 
                 selectedNozzlesForUI.forEach { nozzle ->
                     val color = nozzleColors[nozzle] ?: MaterialTheme.colorScheme.primary
-
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(bottom = 8.dp) // Space between nozzle input rows
                     ) {
                         OutlinedTextField(
-                            value = openingReadingsProvider(nozzle), // Get value from parent
-                            onValueChange = { newValue -> onOpeningReadingChange(nozzle, newValue) }, // Notify parent
+                            value = openingReadingsProvider(nozzle),
+                            onValueChange = { newValue -> onOpeningReadingChange(nozzle, newValue) },
                             label = { Text("$nozzle opening") },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(16.dp),
                             keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
-                            colors = OutlinedTextFieldDefaults.colors( focusedBorderColor = color, focusedLabelColor = color ),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = color,
+                                focusedLabelColor = color
+                            ),
                             singleLine = true
                         )
                         OutlinedTextField(
-                            value = closingReadingsProvider(nozzle), // Get value from parent
-                            onValueChange = { newValue -> onClosingReadingChange(nozzle, newValue) }, // Notify parent
+                            value = closingReadingsProvider(nozzle),
+                            onValueChange = { newValue -> onClosingReadingChange(nozzle, newValue) },
                             label = { Text("$nozzle closing") },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(16.dp),
                             keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
-                            colors = OutlinedTextFieldDefaults.colors( focusedBorderColor = color, focusedLabelColor = color ),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = color,
+                                focusedLabelColor = color
+                            ),
                             singleLine = true
                         )
                     }
@@ -343,19 +364,20 @@ fun NozzleTogglePreview(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class) // Already present, just noting for dropdown
 @Composable
 fun ShiftAssigneeDropdown(
     assignees: List<String>,
     selectedAssignee: String?,
     onAssigneeSelected: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier // Not strictly used here but good practice
 ) {
     var expanded by remember { mutableStateOf(false) }
 
     ExposedDropdownMenuBox(
         expanded = expanded,
         onExpandedChange = { expanded = !expanded },
+        modifier = modifier.padding(horizontal = 16.dp) // Apply padding to the Box
     ) {
         OutlinedTextField(
             readOnly = true,
@@ -364,12 +386,16 @@ fun ShiftAssigneeDropdown(
             label = { Text("Next Shift Assignee") },
             shape = RoundedCornerShape(16.dp),
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.menuAnchor().fillMaxWidth().padding(horizontal = 16.dp)
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth()
+            // .padding(horizontal = 16.dp) // Padding moved to parent Box
         )
 
         ExposedDropdownMenu(
             expanded = expanded,
-            onDismissRequest = {expanded = false},
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.fillMaxWidth() // Make dropdown menu fill width relative to anchor
         ) {
             assignees.forEach { assignee ->
                 DropdownMenuItem(
@@ -380,17 +406,13 @@ fun ShiftAssigneeDropdown(
                     }
                 )
             }
+            if (assignees.isEmpty()){
+                 DropdownMenuItem(
+                    text = { Text("No users available") },
+                    onClick = { expanded = false },
+                    enabled = false
+                )
+            }
         }
     }
 }
-
-//@Preview(showBackground = true)
-//@Composable
-//fun ShiftChangePreview() {
-//    CSAAssistantTheme {
-//        ShiftChangeScreen(
-//            {},
-//            {}
-//        )
-//    }
-//}

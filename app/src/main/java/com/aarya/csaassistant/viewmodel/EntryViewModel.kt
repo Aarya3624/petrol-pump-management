@@ -128,6 +128,7 @@ class EntryViewModel @Inject constructor(
         currentShift: String?,
         handedOverBy: String,
         handedOverTo: String?,
+        closingImagesUrl: List<String>?
     ) {
         _newEntryState.value = _newEntryState.value.copy(
             opening_readings = openingReadings,
@@ -135,7 +136,8 @@ class EntryViewModel @Inject constructor(
             shift = currentShift,
             handed_over_by = handedOverBy,
             handed_over_to = handedOverTo,
-            created_at = null
+            created_at = null,
+            closing_images_url = closingImagesUrl
         )
         Log.d("EntryViewModel", "Updated ShiftChangeData: ${_newEntryState.value}")
     }
@@ -148,7 +150,6 @@ class EntryViewModel @Inject constructor(
         balanceShort: Float?,
         creditDetails: Map<String, Float>?,
         paytmCardNo: String?,
-        closingImagesUrl: Map<String, String>?
     ) {
         _newEntryState.value = _newEntryState.value.copy(
             total_sales = totalSales,
@@ -157,7 +158,6 @@ class EntryViewModel @Inject constructor(
             balance_short = balanceShort,
             credit_details = creditDetails,
             paytm_card_no = paytmCardNo,
-            closing_images_url = closingImagesUrl
         )
         Log.d("EntryViewModel", "Updated SettlementData: ${_newEntryState.value}")
     }
