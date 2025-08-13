@@ -227,10 +227,37 @@ class ImageViewModel @Inject constructor(
     }
 
     fun clearAllImageData() {
+        val urlsToDelete = _imageUrls.value.toList() // Make a copy before clearing
+
+        // Clear local state immediately for UI responsiveness
         _imageUrls.value = emptyList()
         _capturedImageUris.value = emptyList()
         tempCameraImageUri = null
-        _uploadResult.value = null
+        _uploadResult.value = null // Reset any previous operation status
+
+        if (urlsToDelete.isNotEmpty()) {
+            viewModelScope.launch {
+                urlsToDelete.forEach { url ->
+                    // Assuming "closing-readings/" is the correct prefix to remove to get the path
+                    // This path extraction must match what imageRepository.deleteImage expects
+                    val path = url.substringAfter("closing-readings/")
+                    if (path != url && path.isNotBlank()) { // Check if substringAfter found the prefix and path is not blank
+                        try {
+                            val success = imageRepository.deleteImage(path)
+                            if (success) {
+                                Log.i("ImageViewModel", "Successfully deleted image from storage: $path")
+                            } else {
+                                Log.e("ImageViewModel", "Failed to delete image from storage: $path for URL: $url")
+                            }
+                        } catch (e: Exception) {
+                            Log.e("ImageViewModel", "Error deleting image from storage: $path for URL: $url", e)
+                        }
+                    } else {
+                        Log.w("ImageViewModel", "Skipping deletion for malformed or unhandled URL/path: $url")
+                    }
+                }
+            }
+        }
     }
 
     // New function to clear the upload result, to be called by UI after displaying a message

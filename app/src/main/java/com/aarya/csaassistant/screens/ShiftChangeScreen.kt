@@ -90,6 +90,13 @@ fun ShiftChangeScreen(
     // State for the image URLs from ImageCaptureSection
     var currentClosingImageUrls by remember { mutableStateOf<List<String>>(emptyList()) }
 
+    var nextEnabled by remember { mutableStateOf(false) }
+    if (handedOverTo != null && openingReadingsMap.isNotEmpty() && closingReadingsMap.isNotEmpty() && currentClosingImageUrls.isNotEmpty()) {
+        nextEnabled = true
+    } else {
+        nextEnabled = false
+    }
+
     Scaffold(
         bottomBar = {
             Row(
@@ -104,6 +111,7 @@ fun ShiftChangeScreen(
                 FilledTonalButton(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
+                        imageViewModel.clearAllImageData() // Clear images from ViewModel and Supabase
                         navController.popBackStack()
                     },
                     modifier = Modifier
@@ -117,6 +125,7 @@ fun ShiftChangeScreen(
                     )
                 }
                 Button(
+                    enabled = nextEnabled,
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
                         val openingReadingsForDb = mutableMapOf<String, Float>()
@@ -382,7 +391,7 @@ fun ShiftAssigneeDropdown(
         OutlinedTextField(
             readOnly = true,
             value = selectedAssignee ?: "",
-            onValueChange = {},
+            onValueChange = { },
             label = { Text("Next Shift Assignee") },
             shape = RoundedCornerShape(16.dp),
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
