@@ -1,7 +1,6 @@
 package com.aarya.csaassistant.screens
 
 
-import androidx.compose.foundation.gestures.forEach
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,9 +14,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -35,36 +34,32 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.aarya.csaassistant.utils.ProductSalesSummary
+import com.aarya.csaassistant.screens.utils.EntryImageCarousel
+import com.aarya.csaassistant.screens.utils.FullScreenImageViewer
 import com.aarya.csaassistant.utils.formatCurrency
 import com.aarya.csaassistant.utils.nozzleProductColors
 import com.aarya.csaassistant.utils.productDetails
-import com.aarya.csaassistant.utils.toJavaLocalDate
-import com.aarya.csaassistant.utils.toJavaLocalTime
 import com.aarya.csaassistant.viewmodel.EntryViewModel
-import kotlinx.datetime.toJavaLocalDateTime // Added for Instant to LocalDateTime conversion
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
-import kotlin.text.find
 import kotlin.text.format
-import kotlin.text.isNullOrEmpty
 import kotlin.text.uppercase
 import kotlin.time.ExperimentalTime
 import kotlin.time.toJavaInstant
@@ -117,6 +112,7 @@ fun EntryDetailsScreen(
     val haptics = LocalHapticFeedback.current
     val entryDetails by entryViewModel.selectedEntryDetails.collectAsState()
     val isLoading by entryViewModel.isLoading.collectAsState()
+    var selectedImageUrlForFullscreen by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(entryId) {
         entryViewModel.fetchEntryDetailsById(entryId)
@@ -147,7 +143,7 @@ fun EntryDetailsScreen(
                             .width(34.dp)
                     ) {
                         Icon(
-                            Icons.Rounded.ArrowBack,
+                            Icons.AutoMirrored.Rounded.ArrowBack,
                             null
                         )
                     }
@@ -192,6 +188,23 @@ fun EntryDetailsScreen(
                     .padding(innerPadding)
                     .verticalScroll(rememberScrollState()),
             ) {
+                if (!entry.closing_images_url.isNullOrEmpty()) {
+                    EntryImageCarousel(
+                        imageUrls = entry.closing_images_url,
+                        onImageClick = { imageUrl ->
+                            selectedImageUrlForFullscreen = imageUrl
+                        }
+                    )
+                    ListDivider()
+                }
+
+                selectedImageUrlForFullscreen?.let { imageUrl ->
+                    FullScreenImageViewer(
+                        imageUrl = imageUrl,
+                        onDismissRequest = { selectedImageUrlForFullscreen = null }
+                    )
+                }
+
                 SectionTitle("Shift Change Details")
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
@@ -207,7 +220,7 @@ fun EntryDetailsScreen(
                     DetailItem(label = "Date:", value = entry.created_at?.toJavaInstant()?.let { javaInstant -> LocalDateTime.ofInstant(javaInstant, ZoneId.systemDefault()) }.formatToDateOnly())
                 }
                 Spacer(Modifier.height(4.dp))
-                InfoRow(label = "From:", value = entry.handed_over_by ?: "N/A", valueColor = MaterialTheme.colorScheme.primary)
+                InfoRow(label = "From:", value = entry.handed_over_by, valueColor = MaterialTheme.colorScheme.primary)
                 InfoRow(label = "To:", value = entry.handed_over_to ?: "N/A", valueColor = MaterialTheme.colorScheme.secondary)
 
                 ListDivider()
@@ -308,7 +321,7 @@ fun EntryDetailsScreen(
                 if (entry.credit_details.isNullOrEmpty()) {
                     NoDataMessage("No credits recorded.")
                 } else {
-                    entry.credit_details?.forEach { (customer, amount) ->
+                    entry.credit_details.forEach { (customer, amount) ->
                         CreditRow(customerName = customer.capitalizeFirstLetter(), amount = amount)
                     }
                 }
